@@ -220,7 +220,9 @@ always @(posedge clock) begin
 	   dataReady <= 1;
 	   for(k=0;k<charMaxValue;k++) begin
             outputData<=huffmanList[k];
-            outputProbabilityList<=probabilityList[k];
+	   end
+	   for(k=0;k<charMaxValue;k++) begin
+	   	outputProbabilityList<=probabilityList[k];
 	   end
 	   dataReady <= 0;
 	end
