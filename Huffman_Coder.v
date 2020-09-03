@@ -61,7 +61,8 @@ module HuffmanEncoder
 	input wire [bitInByte:0]inputData,				
 	input wire dataEnable,			
 				
-	output reg [2*bitInByte+2:0]outputData,
+	output reg [bitInByte:0]outputData,
+	output reg[bitInByte:0]outputProbabilityList,
 	output reg dataReady,				
 	output reg codeMapReady						
 );	
@@ -74,10 +75,7 @@ module HuffmanEncoder
         INIT =  3'b001,
         GET_DATA,
         BUILD_TREE,
-        DECODE_TREE,
-        SEND_SYMBOLS,
-        SEND_CODE,
-        SEND_LENGTH
+        SEND_TREE
     }States;
 
     reg [bitInByte:0]probabilityList[charMaxValue:0];				
@@ -113,21 +111,18 @@ always @(posedge clock) begin
 
 	case(state)
 	
-	
 	INIT: begin
-	symbolsList[0] = 'b0;
-	probabilityList[0] = 'b0;
+	   symbolsList[0] = 'b0;
+	   probabilityList[0] = 'b0;
 	
-	for(j=0;j<charMaxValue;j=j+1) begin
-	codesList[j] = 'bz;
-	probabilityList[j] = 'b0;
-	symbolsList[j] = 'bz;
-	codeLength[j] = 'b0;
-	end
+	   for(j=0;j<charMaxValue;j=j+1) begin
+	       codesList[j] = 'bz;
+	       probabilityList[j] = 'b0;
+	       symbolsList[j] = 'bz;
+	       codeLength[j] = 'b0;
+	   end
 	
-	
-	outputData = 'bz;
-	state = GET_DATA;
+	   state = GET_DATA;
 	end
 	
 	
@@ -206,13 +201,12 @@ always @(posedge clock) begin
 					end
 				end
 			end
-			
 			step = step + 2;
-		end	
-		
+			
+		end			
 		else 
 			if(col == 0) begin
-			state = DECODE_TREE; 
+			state = BUILD_TREE; 
 			//for(i=0;i<2*col_length;i=i+1)
 			//$display(pairList[i]);
 			//$display(sym_count, "  ",pair_count);
@@ -222,87 +216,15 @@ always @(posedge clock) begin
 			Sym = symbolsList[0];
 			end
 		end
-	
-	
-	DECODE_TREE: begin
-		codeMapReady = 1;
-		dataReady = 1;
-		//One symbol per cycle decoding
-		//i - symbol number, j - iteration for code
-		
-		if(Sym == pairList[j]) begin
-		
-			if(j%2 == 0) begin
-				codesList[i]= codesList[i]<<1 | 'b0;
-				j=j+2;
-			end
-				
-			else begin
-				codesList[i]= codesList[i]<<1 | 'b1;
-				Sym = pairList[j-1]; 
-				j=j+1;
-			end	
-			
-			codeLength[i] = codeLength[i] + 1;
-		end
-		
-		else
-			j=j+1;
-		
-		if(j>pair_count-1) begin
-			i=i+1;
-			j=0;
-			Sym = symbolsList[i];
-			end
-		
-		if(i==sym_count)	begin
-			state = SEND_LENGTH;
-			//for(k=0;k<col_length;k=k+1)
-			//$display(symbolsList[k],"  ","%b",codesList[k],"  ",codeLength[k]);
-			i=0;
-		end
-		
+	SEND_TREE: begin
+	   dataReady <= 1;
+	   for(k=0;k<charMaxValue;k++) begin
+            outputData<=huffmanList[k];
+            outputProbabilityList<=probabilityList[k];
+	   end
+	   dataReady <= 0;
 	end
-
-
-	SEND_LENGTH: begin
-	//send data in reverse order	
-		outputData = codeLength[i];
-		i = i+1;
-		
-		if(i == sym_count) begin
-			state = SEND_CODE;
-			i = 0;
-			end
-		
-		dataReady = 1;	
-		codeMapReady = 0;
-	end
-	
-	SEND_CODE: begin
-		dataReady = 0;
-		codeMapReady = 1;	
-		outputData = codesList[i];
-		i = i+1;
-		
-		if(i == sym_count) begin
-			state = SEND_SYMBOLS;
-			i = 0;
-			end
-		end
-	
-	SEND_SYMBOLS: begin
-		dataReady = 1;
-		codeMapReady = 1;
-		outputData = symbolsList[i];
-		i = i+1;	
-		if(i == sym_count)
-			state = GET_DATA;
-		end
-	
 	endcase
 end
-
-
 
 endmodule
